@@ -1,4 +1,4 @@
-module github.com/jetstack/dependency-track-exporter
+module github.com/dwalker-sabiogroup/dependency-track-exporter
 
 go 1.20
 
