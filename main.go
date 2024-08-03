@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	envAddress string = "DEPENDENCY_TRACK_ADDR"
-	envAPIKey  string = "DEPENDENCY_TRACK_API_KEY"
+	envAddress                         string = "DEPENDENCY_TRACK_ADDR"
+	envAPIKey                          string = "DEPENDENCY_TRACK_API_KEY"
+	envExporterReducePolicyCardinality string = "EXPORTER_REDUCE_POLICY_CARDINALITY"
 )
 
 func init() {
@@ -30,11 +31,12 @@ func init() {
 
 func main() {
 	var (
-		webConfig     = webflag.AddFlags(kingpin.CommandLine, ":9916")
-		metricsPath   = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
-		dtAddress     = kingpin.Flag("dtrack.address", fmt.Sprintf("Dependency-Track server address (can also be set with $%s)", envAddress)).Default("http://localhost:8080").Envar(envAddress).String()
-		dtAPIKey      = kingpin.Flag("dtrack.api-key", fmt.Sprintf("Dependency-Track API key (can also be set with $%s)", envAPIKey)).Envar(envAPIKey).Required().String()
-		promlogConfig = promlog.Config{}
+		webConfig                       = webflag.AddFlags(kingpin.CommandLine, ":9916")
+		metricsPath                     = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
+		dtAddress                       = kingpin.Flag("dtrack.address", fmt.Sprintf("Dependency-Track server address (can also be set with $%s)", envAddress)).Default("http://localhost:8080").Envar(envAddress).String()
+		dtAPIKey                        = kingpin.Flag("dtrack.api-key", fmt.Sprintf("Dependency-Track API key (can also be set with $%s)", envAPIKey)).Envar(envAPIKey).Required().String()
+		exporterReducePolicyCardinality = kingpin.Flag("exporter.reduce-policy-cardinality", fmt.Sprintf("Initialize all policy_violations metric label values (can also be set with $%s)", envExporterReducePolicyCardinality)).Envar(envExporterReducePolicyCardinality).Default("true").Bool()
+		promlogConfig                   = promlog.Config{}
 	)
 
 	flag.AddFlags(kingpin.CommandLine, &promlogConfig)
@@ -54,8 +56,9 @@ func main() {
 	}
 
 	e := exporter.Exporter{
-		Client: c,
-		Logger: logger,
+		Client:                  c,
+		Logger:                  logger,
+		ReducePolicyCardinality: *exporterReducePolicyCardinality,
 	}
 
 	http.HandleFunc(*metricsPath, e.HandlerFunc())
