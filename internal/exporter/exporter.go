@@ -20,8 +20,9 @@ const (
 
 // Exporter exports metrics from a Dependency-Track server
 type Exporter struct {
-	Client *dtrack.Client
-	Logger log.Logger
+	Client                  *dtrack.Client
+	Logger                  log.Logger
+	ReducePolicyCardinality bool
 }
 
 // HandlerFunc handles requests to /metrics
@@ -235,28 +236,30 @@ func (e *Exporter) collectProjectMetrics(ctx context.Context, registry *promethe
 
 		// Initialize all the possible violation series with a 0 value so that it
 		// properly records increments from 0 -> 1
-		for _, possibleType := range []string{"LICENSE", "OPERATIONAL", "SECURITY"} {
-			for _, possibleState := range []string{"INFO", "WARN", "FAIL"} {
-				for _, possibleAnalysis := range []dtrack.ViolationAnalysisState{
-					dtrack.ViolationAnalysisStateApproved,
-					dtrack.ViolationAnalysisStateRejected,
-					dtrack.ViolationAnalysisStateNotSet,
-					// If there isn't any analysis for a policy
-					// violation then the value in the UI is
-					// actually empty. So let's represent that in
-					// these metrics as a possible analysis state.
-					"",
-				} {
-					for _, possibleSuppressed := range []string{"true", "false"} {
-						policyViolations.With(prometheus.Labels{
-							"uuid":       project.UUID.String(),
-							"name":       project.Name,
-							"version":    project.Version,
-							"type":       possibleType,
-							"state":      possibleState,
-							"analysis":   string(possibleAnalysis),
-							"suppressed": possibleSuppressed,
-						})
+		if e.ReducePolicyCardinality {
+			for _, possibleType := range []string{"LICENSE", "OPERATIONAL", "SECURITY"} {
+				for _, possibleState := range []string{"INFO", "WARN", "FAIL"} {
+					for _, possibleAnalysis := range []dtrack.ViolationAnalysisState{
+						dtrack.ViolationAnalysisStateApproved,
+						dtrack.ViolationAnalysisStateRejected,
+						dtrack.ViolationAnalysisStateNotSet,
+						// If there isn't any analysis for a policy
+						// violation then the value in the UI is
+						// actually empty. So let's represent that in
+						// these metrics as a possible analysis state.
+						"",
+					} {
+						for _, possibleSuppressed := range []string{"true", "false"} {
+							policyViolations.With(prometheus.Labels{
+								"uuid":       project.UUID.String(),
+								"name":       project.Name,
+								"version":    project.Version,
+								"type":       possibleType,
+								"state":      possibleState,
+								"analysis":   string(possibleAnalysis),
+								"suppressed": possibleSuppressed,
+							})
+						}
 					}
 				}
 			}
