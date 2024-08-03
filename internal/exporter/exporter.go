@@ -285,7 +285,7 @@ func (e *Exporter) collectProjectMetrics(ctx context.Context, registry *promethe
 			"name":       violation.Project.Name,
 			"version":    violation.Project.Version,
 			"type":       violation.Type,
-			"state":      violation.PolicyCondition.Policy.ViolationState,
+			"state":      string(violation.PolicyCondition.Policy.ViolationState),
 			"analysis":   analysisState,
 			"suppressed": suppressed,
 		}).Inc()

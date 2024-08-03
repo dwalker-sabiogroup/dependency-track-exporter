@@ -12,6 +12,7 @@ import (
 	"github.com/dwalker-sabiogroup/dependency-track-exporter/internal/exporter"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
@@ -26,7 +27,7 @@ const (
 )
 
 func init() {
-	prometheus.MustRegister(version.NewCollector(exporter.Namespace + "_exporter"))
+	prometheus.MustRegister(collectors.NewBuildInfoCollector())
 }
 
 func main() {
