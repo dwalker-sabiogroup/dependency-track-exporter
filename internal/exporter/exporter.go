@@ -3,12 +3,11 @@ package exporter
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	dtrack "github.com/DependencyTrack/client-go"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -21,7 +20,7 @@ const (
 // Exporter exports metrics from a Dependency-Track server
 type Exporter struct {
 	Client                  *dtrack.Client
-	Logger                  log.Logger
+	Logger                  *slog.Logger
 	ReducePolicyCardinality bool
 }
 
@@ -31,13 +30,13 @@ func (e *Exporter) HandlerFunc() http.HandlerFunc {
 		registry := prometheus.NewRegistry()
 
 		if err := e.collectPortfolioMetrics(r.Context(), registry); err != nil {
-			level.Error(e.Logger).Log("err", err)
+			e.Logger.Error("collect portfolio metrics", slog.String("error", err.Error()))
 			http.Error(w, fmt.Sprintf("error: %s", err), http.StatusInternalServerError)
 			return
 		}
 
 		if err := e.collectProjectMetrics(r.Context(), registry); err != nil {
-			level.Error(e.Logger).Log("err", err)
+			e.Logger.Error("collect project metrics", slog.String("error", err.Error()))
 			http.Error(w, fmt.Sprintf("error: %s", err), http.StatusInternalServerError)
 			return
 		}
@@ -236,7 +235,7 @@ func (e *Exporter) collectProjectMetrics(ctx context.Context, registry *promethe
 
 		// Initialize all the possible violation series with a 0 value so that it
 		// properly records increments from 0 -> 1
-		if e.ReducePolicyCardinality {
+		if !e.ReducePolicyCardinality {
 			for _, possibleType := range []string{"LICENSE", "OPERATIONAL", "SECURITY"} {
 				for _, possibleState := range []string{"INFO", "WARN", "FAIL"} {
 					for _, possibleAnalysis := range []dtrack.ViolationAnalysisState{
