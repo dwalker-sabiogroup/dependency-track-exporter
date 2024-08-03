@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	_ "net/http/pprof"
+	"net/http/pprof"
 
 	dtrack "github.com/DependencyTrack/client-go"
 	"github.com/alecthomas/kingpin/v2"
@@ -80,6 +80,12 @@ func main() {
 		func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})))
+
+	mux.Handle("/debug/pprof/profile", otelhttp.WithRouteTag("/debug/pprof/profile", pprof.Handler("profile")))
+	mux.Handle("/debug/pprof/block", otelhttp.WithRouteTag("/debug/pprof/block", pprof.Handler("block")))
+	mux.Handle("/debug/pprof/allocs", otelhttp.WithRouteTag("/debug/pprof/allocs", pprof.Handler("allocs")))
+	mux.Handle("/debug/pprof/goroutine", otelhttp.WithRouteTag("/debug/pprof/goroutine", pprof.Handler("goroutine")))
+	mux.Handle("/debug/pprof/mutex", otelhttp.WithRouteTag("/debug/pprof/mutex", pprof.Handler("mutex")))
 
 	srvc := make(chan struct{})
 	term := make(chan os.Signal, 1)
