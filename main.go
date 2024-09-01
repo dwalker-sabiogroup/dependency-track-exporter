@@ -16,6 +16,7 @@ import (
 	"github.com/dwalker-sabiogroup/dependency-track-exporter/internal/exporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
@@ -24,9 +25,8 @@ import (
 )
 
 const (
-	envAddress                         string = "DEPENDENCY_TRACK_ADDR"
-	envAPIKey                          string = "DEPENDENCY_TRACK_API_KEY"
-	envExporterReducePolicyCardinality string = "EXPORTER_REDUCE_POLICY_CARDINALITY"
+	envAddress string = "DEPENDENCY_TRACK_ADDR"
+	envAPIKey  string = "DEPENDENCY_TRACK_API_KEY"
 )
 
 func init() {
@@ -35,17 +35,16 @@ func init() {
 
 func main() {
 	var (
-		profilingConfig                 = kingpin.Flag("web.pprof-listen-address", "Address to listen on for pprof").Default(":9917").String()
-		webConfig                       = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry").Default(":9916").String()
-		metricsPath                     = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
-		dtAddress                       = kingpin.Flag("dtrack.address", fmt.Sprintf("Dependency-Track server address (can also be set with $%s)", envAddress)).Default("http://localhost:8080").Envar(envAddress).String()
-		dtAPIKey                        = kingpin.Flag("dtrack.api-key", fmt.Sprintf("Dependency-Track API key (can also be set with $%s)", envAPIKey)).Envar(envAPIKey).Required().String()
-		exporterReducePolicyCardinality = kingpin.Flag("exporter.reduce-policy-cardinality", fmt.Sprintf("Initialize all policy_violations metric label values (can also be set with $%s)", envExporterReducePolicyCardinality)).Envar(envExporterReducePolicyCardinality).Default("true").Bool()
-		promlogConfig                   = promlog.Config{}
+		profilingConfig = kingpin.Flag("web.pprof-listen-address", "Address to listen on for pprof").Default(":9917").String()
+		webConfig       = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry").Default(":9916").String()
+		metricsPath     = kingpin.Flag("web.metrics-path", "Path under which to expose metrics").Default("/metrics").String()
+		dtAddress       = kingpin.Flag("dtrack.address", fmt.Sprintf("Dependency-Track server address (can also be set with $%s)", envAddress)).Default("http://localhost:8080").Envar(envAddress).String()
+		dtAPIKey        = kingpin.Flag("dtrack.api-key", fmt.Sprintf("Dependency-Track API key (can also be set with $%s)", envAPIKey)).Envar(envAPIKey).Required().String()
+		promlogConfig   = promlog.Config{}
 	)
 
 	flag.AddFlags(kingpin.CommandLine, &promlogConfig)
-	kingpin.Version(version.Print(exporter.Namespace + "_exporter"))
+	kingpin.Version(version.Print("dependency_track_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
@@ -56,7 +55,7 @@ func main() {
 		WithTraceID: true,
 	}
 
-	logger.Info(fmt.Sprintf("Starting %s_exporter %s", exporter.Namespace, version.Info()))
+	logger.Info(fmt.Sprintf("Starting depnendency_track_exporter %s", version.Info()))
 	logger.Info("Build context " + version.BuildContext())
 
 	c, err := dtrack.NewClient(*dtAddress, dtrack.WithAPIKey(*dtAPIKey))
@@ -65,18 +64,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	e := exporter.Exporter{
-		Client:                  c,
-		Logger:                  logger,
-		ReducePolicyCardinality: *exporterReducePolicyCardinality,
-	}
+	e := exporter.New(c, logger)
+
+	prometheus.MustRegister(e)
 
 	mux := http.NewServeMux()
 
 	handler := sloghttp.Recovery(mux)
 	handler = sloghttp.NewWithConfig(logger, config)(handler)
 
-	mux.Handle(*metricsPath, otelhttp.WithRouteTag(*metricsPath, e.HandlerFunc()))
+	mux.Handle(*metricsPath, otelhttp.WithRouteTag(*metricsPath, promhttp.Handler()))
 
 	mux.Handle("/", otelhttp.WithRouteTag("/", http.HandlerFunc(
 		func(w http.ResponseWriter, _ *http.Request) {
