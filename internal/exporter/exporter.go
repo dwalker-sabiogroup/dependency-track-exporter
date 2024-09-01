@@ -99,7 +99,6 @@ func (e *Exporter) filterProjects(projects []dtrack.Project) []dtrack.Project {
 	filtered := make([]dtrack.Project, 0, len(projects))
 
 	for _, p := range m {
-		e.logger.Info("filtering", "project", p)
 		filtered = append(filtered, p)
 	}
 
